@@ -6,8 +6,8 @@ exports.register = async(req , res) => {
         const {password,email} = req.body
       const found = await User.findOne({email})
       if( found){
-     return  res.json({
-      message: " Email already exist",
+     return  res.status(409).json({
+      message: "Email already exist",
       // hashPass
     })
       }
@@ -22,7 +22,7 @@ exports.register = async(req , res) => {
         // hashPass
       })
     } catch (error) {
-        res.json({message:"something went wrong " , error})
+        res.status(400).json({message:"something went wrong " , error})
     }
 }
 exports.fetchUsers = async(req , res) => {
@@ -45,22 +45,32 @@ exports.fetchUsers = async(req , res) => {
 }
 exports.login = async(req , res) => {
     try {
-
       const {email, password} = req.body
+      // const result = await User.findOne({email}).lean()
       const result = await User.findOne({email})
       if (!result) {
-        return res.json({message:"email is not registered with us"})
+        return res.status(401).json({message:"email is not registered with us"})
       }
       // email bhetla
       const match = await bcrypt.compare(password , result.password)
       if(!match){
-        return res.json({message :"password do not match"})
+        return res.status(401).json({message :"password do not match"})
       }
-      const token = jwt.sign({name:"kate"},process.env.JWT_KEY)
-      res.json({message:"login success" , token})
-      
+      const token = jwt.sign({userId:result._id},process.env.JWT_KEY,{
+        expiresIn: "1d"
+      })
+      res.cookie("token", token,{
+        httpOnly:true,
+        secure:true,
+        maxAge:60 * 60*1000
+      })
+      res.json({message:"login success" , result:{
+        _id:result._id,
+        name:result.name,
+        emali:result.email,
+      }})
     } catch (error) {
-        res.json({message:"something went wrong " + error})
+        res.status(400).json({message:"something went wrong " + error})
     }
 }
 exports.destroy = async(req , res) => {
